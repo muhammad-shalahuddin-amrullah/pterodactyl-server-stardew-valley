@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up environment
+      run: sudo apt-get update && sudo apt-get install -y curl lib32gcc1 ca-certificates wget unzip
+
+    - name: Install dependencies and set up server
+      run: ./install_script.sh
+
+    - name: Run tests
+      run: echo "Running tests..." # Replace with actual test commands
