@@ -1,0 +1,75 @@
+name: Stardew Valley Server
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  setup-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl lib32gcc1 ca-certificates wget unzip
+
+    - name: Install SteamCMD
+      run: |
+        mkdir -p /mnt/server/steamcmd
+        curl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+        tar -xzvf steamcmd.tar.gz -C /mnt/server/steamcmd
+
+    - name: Install Stardew Valley Server
+      run: |
+        cd /mnt/server/steamcmd
+        ./steamcmd.sh +login anonymous +force_install_dir /mnt/server +app_update 413150 validate +quit
+
+    - name: Set up Stardew Valley Server
+      run: |
+        cd /mnt/server
+        mkdir -p ./.config
+        mkdir -p ./.config/i3
+        mkdir -p ./.config/StardewValley
+        mkdir -p ./nexus
+        mkdir -p ./storage
+        mkdir -p ./logs
+        wget https://github.com/Pathoschild/SMAPI/releases/download/3.8/SMAPI-3.8.0-installer.zip -qO ./storage/nexus.zip
+        unzip ./storage/nexus.zip -d ./nexus/
+        /bin/bash -c "echo -e \"2\n/mnt/server\n1\n\" | /usr/bin/mono /mnt/server/nexus/SMAPI\ 3.8.0\ installer/internal/unix-install.exe"
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/stardew_valley_server.config -qO ./.config/StardewValley/startup_preferences
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/i3.config -qO ./.config/i3/config
+        wget https://github.com/metrogamelab/pterodactyl-server-stardew-valley/raw/main/alwayson.zip -qO ./storage/alwayson.zip
+        wget https://github.com/metrogamelab/pterodactyl-server-stardew-valley/raw/main/unlimitedplayers.zip -qO ./storage/unlimitedplayers.zip
+        wget https://github.com/metrogamelab/pterodactyl-server-stardew-valley/raw/main/autoloadgame.zip -qO ./storage/autoloadgame.zip
+        unzip ./storage/alwayson.zip -d ./Mods
+        unzip ./storage/unlimitedplayers.zip -d ./Mods
+        unzip ./storage/autoloadgame.zip -d ./Mods
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/alwayson.json -qO ./Mods/Always\ On\ Server/config.json
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/unlimitedplayers.json -qO ./Mods/UnlimitedPlayers/config.json
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/autoloadgame.json -qO ./Mods/AutoLoadGame/config.json
+        wget https://raw.githubusercontent.com/metrogamelab/pterodactyl-server-stardew-valley/main/stardew-valley-server.sh -qO ./stardew-valley-server.sh
+        chmod +x ./stardew-valley-server.sh
+        rm ./storage/alwayson.zip ./storage/unlimitedplayers.zip ./storage/autoloadgame.zip
+
+    - name: Install ngrok
+      run: |
+        wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+        unzip ngrok-stable-linux-amd64.zip
+        sudo mv ngrok /usr/local/bin
+
+    - name: Start ngrok
+      run: |
+        ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        ngrok tcp 5900 &
+
+    - name: Start Stardew Valley Server
+      run: |
+        ./stardew-valley-server.sh
